@@ -7,7 +7,7 @@ lazy val root = (project in file(".")).
 
     version := "0.1.0",
 
-    scalaVersion := "2.11.11",
+    scalaVersion := "2.12.17",
 
     organization  := "org.datasyslab",
 
@@ -17,9 +17,14 @@ lazy val root = (project in file(".")).
   )
 
 libraryDependencies ++= Seq(
-  "org.apache.spark" %% "spark-core" % "2.2.0" % "provided",
-  "org.apache.spark" %% "spark-sql" % "2.2.0" % "provided",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
-  "org.specs2" %% "specs2-core" % "2.4.16" % "test",
-  "org.specs2" %% "specs2-junit" % "2.4.16" % "test"
+  // Apache Spark dependencies updated to match Spark 3.4.4
+  "org.apache.spark" %% "spark-core" % "3.4.4" % "provided",
+  "org.apache.spark" %% "spark-sql" % "3.4.4" % "provided",
+
+  // Updated ScalaTest to a version compatible with Scala 2.12.17
+  "org.scalatest" %% "scalatest" % "3.2.17" % Test,
+
+  // Updated Specs2 dependencies to versions compatible with Scala 2.12.17
+  "org.specs2" %% "specs2-core" % "4.10.6" % Test,
+  "org.specs2" %% "specs2-junit" % "4.10.6" % Test
 )
