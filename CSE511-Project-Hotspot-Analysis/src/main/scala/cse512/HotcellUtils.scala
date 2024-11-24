@@ -42,6 +42,30 @@ object HotcellUtils {
     return calendar.get(Calendar.DAY_OF_MONTH)
   }
 
+  def numNeighbors(x: Double, y: Double, z: Double, minX: Double,  maxX: Double, minY: Double, maxY: Double, minZ: Double, maxZ: Double) : Int= {
+    var onAxis = 0
+    if (x == minX || x == maxX) {
+      onAxis += 1
+    }
+    if (y == minY || y == maxY) {
+      onAxis += 1
+    }
+    if (z == minY || z == maxZ ) {
+      onAxis += 1
+    }
+    if (onAxis == 0) {
+      return 27
+    } else if (onAxis== 1) {
+      return 18
+    } else if (onAxis == 2) {
+      return 12
+    } else if (onAxis == 3) {
+      return 8
+    }
+    return 0
+  }
+
+
   def calculateG(sum_neighbor_trips: Double, num_neighbors: Double, numCells: Double, mean: Double, std: Double): Double = {
     // cell: one unique (x, y, z) combination
     // x: # of rides picked up at a cell
@@ -51,7 +75,9 @@ object HotcellUtils {
     // formula reference: https://sigspatial2016.sigspatial.org/giscup2016/problem
 
     val numerator = sum_neighbor_trips - mean * num_neighbors
-    val denominator = (std * math.sqrt(((num_neighbors * numCells) - (num_neighbors * num_neighbors)) / (numCells - 1.0)))
+    val denominator = (std * math.sqrt(
+      (numCells * num_neighbors  - Math.pow(num_neighbors, 2)) /
+        (numCells - 1.0)))
     return numerator / denominator
   }
 }

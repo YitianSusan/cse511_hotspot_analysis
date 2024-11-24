@@ -1,7 +1,7 @@
 package cse512
 
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession,SaveMode}
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.functions._
 
@@ -46,13 +46,16 @@ object HotcellAnalysis {
     // Step 1: Count trips per cell
     val tripsPerCell = spark.sql(
       s"""
-         |SELECT DISTINCT
+         |SELECT
          |  x,
          |  y,
          |  z,
          |  COUNT(*) as trips_cnt
          |FROM pickupInfo
-         |WHERE x BETWEEN $minX AND $maxX AND y BETWEEN $minY AND $maxY AND z BETWEEN $minZ AND $maxZ
+         |WHERE
+         |x >= $minX AND x <= $maxX
+         |AND y >= $minY AND y <= $maxY
+         |AND z >= $minZ AND z <= $maxZ
          |GROUP BY x, y, z
          |ORDER BY trips_cnt DESC
          |""".stripMargin
@@ -60,6 +63,7 @@ object HotcellAnalysis {
     logger.info("tripsPerCell")
     tripsPerCell.show()
     tripsPerCell.createOrReplaceTempView("tripsPerCell")
+    tripsPerCell.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/tripsPerCell.csv")
 
     // Step 2: Compute global statistics
     val globalStats = spark.sql(
@@ -73,13 +77,16 @@ object HotcellAnalysis {
 
     val mean = globalStats.getDouble(0)
     val std = globalStats.getDouble(1)
-//    logger.info("mean")
-//    logger.info(mean)
-//    logger.info("std")
-//    logger.info(std)
+    logger.info("mean = " + mean)
+    logger.info("std = " + std)
 
+    // Step 3: calculate neighbor info
     // cartesian product of tripsPerCell table with itself to calculate neighbors info
     // neighbor: x, y, z is +- 1 from itself but not fully equal
+    spark.udf.register("numNeighbors", (x, y, z) =>
+      HotcellUtils.numNeighbors(x, y, z, minX, maxX, minY, maxY, minZ , maxZ )
+    )
+
     val neighborData = spark.sql(
       s"""
          |SELECT
@@ -87,10 +94,9 @@ object HotcellAnalysis {
          |  tp1.y,
          |  tp1.z,
          |  SUM(tp2.trips_cnt) AS sum_neighbour_trips,
-         |  COUNT(*) AS num_neighbors
+         |  numNeighbors(tp1.x, tp1.y, tp1.z) AS num_neighbors
          |FROM tripsPerCell tp1, tripsPerCell tp2
          |WHERE
-         |  NOT (tp1.x = tp2.x AND tp1.y = tp2.y AND tp1.z = tp2.z) AND
          |  ABS(tp1.x - tp2.x) <= 1 AND
          |  ABS(tp1.y - tp2.y) <= 1 AND
          |  ABS(tp1.z - tp2.z) <= 1
@@ -101,6 +107,7 @@ object HotcellAnalysis {
     logger.info("neighborData")
     neighborData.show()
     neighborData.createOrReplaceTempView("neighborData")
+    neighborData.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/neighborData.csv")
 
     // Step 3: Calculate G* statistic for each cell
     // Register calculateG as a UDF
