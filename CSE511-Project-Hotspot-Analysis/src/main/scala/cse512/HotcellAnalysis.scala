@@ -57,36 +57,32 @@ object HotcellAnalysis {
          |AND y >= $minY AND y <= $maxY
          |AND z >= $minZ AND z <= $maxZ
          |GROUP BY x, y, z
-         |ORDER BY trips_cnt DESC
          |""".stripMargin
     )
     logger.info("tripsPerCell")
     tripsPerCell.show()
     tripsPerCell.createOrReplaceTempView("tripsPerCell")
-    tripsPerCell.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/tripsPerCell.csv")
+//    tripsPerCell.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/tripsPerCell.csv")
 
     // Step 2: Compute global statistics
     val globalStats = spark.sql(
       """
         |SELECT
-        | AVG(trips_cnt) as mean,
-        | STDDEV(trips_cnt) as std
-        |FROM tripsPerCell
+        | SUM(trips_cnt) as sum_x,
+        | SUM(trips_cnt * trips_cnt) as sum_sq_x
+        | FROM tripsPerCell
         |""".stripMargin
     ).collect()(0)
 
-    val mean = globalStats.getDouble(0)
-    val std = globalStats.getDouble(1)
-    logger.info("mean = " + mean)
-    logger.info("std = " + std)
+    val sum_x = globalStats.getLong(0)
+    val sum_sq_x = globalStats.getLong(1)
+    val mean = sum_x / numCells
+    val std = Math.sqrt((sum_sq_x / numCells) - Math.pow(mean, 2))
+    logger.info("mean = " + mean + "; std = " + std)
 
     // Step 3: calculate neighbor info
     // cartesian product of tripsPerCell table with itself to calculate neighbors info
     // neighbor: x, y, z is +- 1 from itself but not fully equal
-    spark.udf.register("numNeighbors", (x, y, z) =>
-      HotcellUtils.numNeighbors(x, y, z, minX, maxX, minY, maxY, minZ , maxZ )
-    )
-
     val neighborData = spark.sql(
       s"""
          |SELECT
@@ -94,7 +90,7 @@ object HotcellAnalysis {
          |  tp1.y,
          |  tp1.z,
          |  SUM(tp2.trips_cnt) AS sum_neighbour_trips,
-         |  numNeighbors(tp1.x, tp1.y, tp1.z) AS num_neighbors
+         |  COUNT(tp1.x, tp1.y, tp1.z) AS num_neighbors
          |FROM tripsPerCell tp1, tripsPerCell tp2
          |WHERE
          |  ABS(tp1.x - tp2.x) <= 1 AND
@@ -107,7 +103,7 @@ object HotcellAnalysis {
     logger.info("neighborData")
     neighborData.show()
     neighborData.createOrReplaceTempView("neighborData")
-    neighborData.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/neighborData.csv")
+//    neighborData.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/neighborData.csv")
 
     // Step 3: Calculate G* statistic for each cell
     // Register calculateG as a UDF
@@ -127,12 +123,9 @@ object HotcellAnalysis {
          |LIMIT 50
          |""".stripMargin
     )
-
     gStarResults.createOrReplaceTempView("gStarResults")
     gStarResults.show()
-    val filteredResults = gStarResults.select("x", "y", "z")
 
-    // Return only x, y, z
-    return filteredResults
+    return gStarResults.select("x", "y", "z")
   }
 }
