@@ -64,7 +64,7 @@ object HotcellAnalysis {
     tripsPerCell.createOrReplaceTempView("tripsPerCell")
 //    tripsPerCell.write.mode(SaveMode.Overwrite).csv("/Users/yitiansusanlin/Documents/ASU/CSE511 data processing/project 2/cse511_hotspot_analysis/CSE511-Project-Hotspot-Analysis/test/tripsPerCell.csv")
 
-    // Step 2: Compute global statistics
+    // Step 2: Compute mean, std. Note many cell has 0 trips, we should consider all of them
     val globalStats = spark.sql(
       """
         |SELECT
