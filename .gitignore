@@ -1,5 +1,5 @@
-.vscode
-.metal
+.vscode/
+.metals/
 *.class
 *.log
 
